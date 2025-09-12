@@ -1,4 +1,8 @@
+# Binaries
 /target
 /samples
 /output
+
+# OS files
+.DS_Store
 
