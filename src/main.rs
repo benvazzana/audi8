@@ -1,8 +1,7 @@
 use clap::Parser;
 use hound::{Error, WavReader, WavSpec, WavWriter};
-use rubato::{FftFixedInOut, Resampler};
 
-use audi8::wav;
+use audi8::{time_scaler::{TimeScaler}, wav};
 
 #[derive(Parser)]
 #[command(name="audi8", version="1.0", about="A CLI audio transposition tool", long_about = None)]
@@ -43,35 +42,37 @@ fn main() {
     ).unwrap();
 
     let chunk_size = 4096usize;
-    let sampling_ratio = 2f32.powf(pitch_shift as f32 / 12.0);
 
-    let mut resampler = FftFixedInOut::<f32>::new(
-        spec.sample_rate as usize,
-        (spec.sample_rate as f32 / sampling_ratio) as usize,
+    let mut time_scaler = TimeScaler::new(
         chunk_size,
+        chunk_size / 2,
+        0.5,
         spec.channels as usize,
-    ).unwrap();
+    );
 
+    // Read entire file into input buffer
     loop {
-        let in_frames = resampler.input_frames_next();
-        let out_frames = resampler.output_frames_next();
-        let mut in_block = wav::read_frames(&mut reader, in_frames);
-        let exhausted = in_block.iter().any(|ch| ch.len() < in_frames);
-
-        for ch in &mut in_block {
-            ch.resize(in_frames, 0.0);
-        }
-
-        let out_block = resampler.process(&in_block, None).unwrap();
-        wav::write_frames(&mut writer, out_block, out_frames);
+        let in_block = wav::read_frames(&mut reader, chunk_size);
+        let exhausted = in_block.iter().any(|channel| channel.len() < chunk_size);
+        time_scaler.push_block(&in_block);
 
         if exhausted {
             break;
         }
     }
 
+    loop {
+        match time_scaler.pop_block() {
+            Ok(out_block) => {
+                wav::write_frames(&mut writer, out_block, chunk_size);
+            }
+            Err(..) => break,
+        }
+
+    }
+
     writer.finalize().unwrap();
 
-    println!("successfully resampled {file_path}, saving to output.wav");
+    println!("successfully time-shifted {file_path}, saving to output.wav");
 }
 
