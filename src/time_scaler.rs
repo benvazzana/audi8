@@ -1,10 +1,12 @@
-use crate::error::InsufficientInputError;
+use crate::{error::InsufficientInputError, window::hann_window};
 
 pub struct TimeScaler {
     block_size: usize,
     hop: usize,
     scaling_factor: f32,
     channels: usize,
+
+    window: Vec<f32>,
 
     // per-channel input and output
     in_buf: Vec<Vec<f32>>,
@@ -17,6 +19,7 @@ impl TimeScaler {
     pub fn new(block_size: usize, hop: usize, scaling_factor: f32, channels: usize) -> Self {
         Self {
             block_size, hop, scaling_factor, channels,
+            window: hann_window(block_size),
             in_buf: vec![Vec::new(); block_size],
             out_buf: vec![Vec::new(); block_size],
             next_input_idx: 0,
@@ -41,7 +44,7 @@ impl TimeScaler {
 
                 for i in 0..self.block_size {
                     let sample = self.in_buf[channel][self.next_input_idx + i];
-                    self.out_buf[channel][self.next_output_idx + i] += sample;
+                    self.out_buf[channel][self.next_output_idx + i] += sample * self.window[i];
                 }
             }
             self.next_input_idx += self.hop;
