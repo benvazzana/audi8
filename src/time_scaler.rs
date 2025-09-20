@@ -1,0 +1,68 @@
+use crate::error::InsufficientInputError;
+
+pub struct TimeScaler {
+    block_size: usize,
+    hop: usize,
+    scaling_factor: f32,
+    channels: usize,
+
+    // per-channel input and output
+    in_buf: Vec<Vec<f32>>,
+    out_buf: Vec<Vec<f32>>,
+
+    next_input_idx: usize,
+    next_output_idx: usize,
+}
+impl TimeScaler {
+    pub fn new(block_size: usize, hop: usize, scaling_factor: f32, channels: usize) -> Self {
+        Self {
+            block_size, hop, scaling_factor, channels,
+            in_buf: vec![Vec::new(); block_size],
+            out_buf: vec![Vec::new(); block_size],
+            next_input_idx: 0,
+            next_output_idx: 0,
+        }
+    }
+
+    pub fn push_block(&mut self, block: &Vec<Vec<f32>>) {
+        for channel in 0..self.channels {
+            self.in_buf[channel].extend_from_slice(&block[channel]);
+        }
+        self.process_available_frames();
+    }
+
+    fn process_available_frames(&mut self) {
+        while self.next_input_idx + self.block_size <= self.in_buf[0].len() {
+            let need = self.next_output_idx + self.block_size;
+            for channel in 0..self.channels {
+                if self.out_buf[channel].len() < need {
+                    self.out_buf[channel].resize(need, 0.0);
+                }
+
+                for i in 0..self.block_size {
+                    let sample = self.in_buf[channel][self.next_input_idx + i];
+                    self.out_buf[channel][self.next_output_idx + i] += sample;
+                }
+            }
+            self.next_input_idx += self.hop;
+            self.next_output_idx += (self.hop as f32*self.scaling_factor) as usize;
+        }
+    }
+
+    pub fn pop_block(&mut self) -> Result<Vec<Vec<f32>>, InsufficientInputError> {
+        if self.next_output_idx < self.block_size {
+            return Err(InsufficientInputError);
+        }
+
+        let mut block = vec![Vec::with_capacity(self.block_size); self.channels];
+        for channel in 0..self.channels {
+            for i in 0..self.block_size {
+                block[channel].push(self.out_buf[channel][i]);
+            }
+            self.out_buf[channel].drain(0..self.block_size);
+        }
+        self.next_output_idx -= self.block_size;
+        Ok(block)
+    }
+}
+
