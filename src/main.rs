@@ -1,7 +1,8 @@
 use clap::Parser;
 use hound::{Error, WavReader, WavSpec, WavWriter};
 
-use audi8::{time_scaler::{TimeScaler}, wav};
+use audi8::{error::InsufficientInputError, time_scaler::TimeScaler, wav};
+use rubato::{FftFixedInOut, Resampler};
 
 #[derive(Parser)]
 #[command(name="audi8", version="1.0", about="A CLI audio transposition tool", long_about = None)]
@@ -42,11 +43,19 @@ fn main() {
     ).unwrap();
 
     let chunk_size = 4096usize;
+    let sampling_ratio = 2f32.powf(pitch_shift as f32 / 12.0);
+
+    let mut resampler = FftFixedInOut::<f32>::new(
+        spec.sample_rate as usize,
+        (spec.sample_rate as f32 / sampling_ratio) as usize,
+        chunk_size,
+        spec.channels as usize,
+    ).unwrap();
 
     let mut time_scaler = TimeScaler::new(
         chunk_size,
         chunk_size / 2,
-        0.5,
+        sampling_ratio,
         spec.channels as usize,
     );
 
@@ -62,17 +71,20 @@ fn main() {
     }
 
     loop {
-        match time_scaler.pop_block() {
-            Ok(out_block) => {
-                wav::write_frames(&mut writer, out_block, chunk_size);
+        let in_frames = resampler.input_frames_next();
+        let out_frames = resampler.output_frames_next();
+        match time_scaler.pop_frames(in_frames) {
+            Ok(block) => {
+                let out_block = resampler.process(&block, None).unwrap();
+                wav::write_frames(&mut writer, out_block, out_frames);
             }
-            Err(..) => break,
+            Err(InsufficientInputError) => break,
         }
 
     }
 
     writer.finalize().unwrap();
 
-    println!("successfully time-shifted {file_path}, saving to output.wav");
+    println!("successfully transposed {file_path}, saving to output.wav");
 }
 

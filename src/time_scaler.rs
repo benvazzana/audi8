@@ -49,20 +49,21 @@ impl TimeScaler {
         }
     }
 
-    pub fn pop_block(&mut self) -> Result<Vec<Vec<f32>>, InsufficientInputError> {
-        if self.next_output_idx < self.block_size {
+    pub fn pop_frames(&mut self, frames: usize) -> Result<Vec<Vec<f32>>, InsufficientInputError> {
+        if self.next_output_idx < frames {
             return Err(InsufficientInputError);
         }
 
-        let mut block = vec![Vec::with_capacity(self.block_size); self.channels];
+        let mut block = vec![Vec::with_capacity(frames); self.channels];
         for channel in 0..self.channels {
-            for i in 0..self.block_size {
+            for i in 0..frames {
                 block[channel].push(self.out_buf[channel][i]);
             }
-            self.out_buf[channel].drain(0..self.block_size);
+            self.out_buf[channel].drain(0..frames);
         }
-        self.next_output_idx -= self.block_size;
+        self.next_output_idx -= frames;
         Ok(block)
     }
+
 }
 
