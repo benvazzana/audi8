@@ -2,6 +2,7 @@
 /target
 /samples
 /output
+output.wav
 
 # OS files
 .DS_Store
