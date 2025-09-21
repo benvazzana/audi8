@@ -12,8 +12,10 @@ async fn health() -> impl Responder {
 }
 
 #[post("/transpose")]
-async fn transpose_wav(params: web::Query<TransposeParams>) -> impl Responder {
+async fn transpose_wav(params: web::Query<TransposeParams>, body: web::Bytes) -> impl Responder {
+    let size = body.len();
     let num_semitones = params.semitones;
+    println!("received {size} bytes");
     println!("transpose request: {num_semitones} semitones");
     HttpResponse::Ok()
 }

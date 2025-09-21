@@ -1,4 +1,4 @@
-use actix_web::{App, HttpServer, middleware::Logger};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use clap::{Subcommand, Parser};
 use hound::{Error, WavReader, WavSpec, WavWriter};
 
@@ -113,6 +113,7 @@ async fn main() -> std::io::Result<()> {
             HttpServer::new(|| {
                 App::new()
                     .wrap(Logger::default())
+                    .app_data(web::PayloadConfig::new(50 * 1024 * 1024))
                     .service(health)
                     .service(transpose_wav)
             })
