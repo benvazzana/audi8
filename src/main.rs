@@ -2,8 +2,7 @@ use actix_web::{middleware::Logger, web, App, HttpServer};
 use clap::{Subcommand, Parser};
 use hound::{Error, WavReader, WavSpec, WavWriter};
 
-use audi8::{api::{health, transpose_wav}, error::InsufficientInputError, time_scaler::TimeScaler, transpose, wav};
-use rubato::{FftFixedInOut, Resampler};
+use audi8::{api::{health, transpose_wav}, transpose};
 
 #[derive(Parser)]
 #[command(name="audi8", version="1.0", about="An audio transposition tool", long_about = None)]
