@@ -1,8 +1,8 @@
-use actix_web::{App, HttpServer};
+use actix_web::{App, HttpServer, middleware::Logger};
 use clap::{Subcommand, Parser};
 use hound::{Error, WavReader, WavSpec, WavWriter};
 
-use audi8::{api::health, error::InsufficientInputError, time_scaler::TimeScaler, wav};
+use audi8::{api::{health, transpose_wav}, error::InsufficientInputError, time_scaler::TimeScaler, wav};
 use rubato::{FftFixedInOut, Resampler};
 
 #[derive(Parser)]
@@ -37,7 +37,7 @@ enum Command {
 }
 
 #[actix_web::main]
-async fn main() {
+async fn main() -> std::io::Result<()> {
     let args = Args::parse();
     match args.command {
         Command::Cli { input_file, num_semitones, output_file } => {
@@ -106,18 +106,19 @@ async fn main() {
             writer.finalize().unwrap();
 
             println!("successfully transposed {input_file}, saving to {output_file}");
+            Ok(())
         },
         Command::Serve { host, port } => {
-            let server = HttpServer::new(|| {
+            env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+            HttpServer::new(|| {
                 App::new()
+                    .wrap(Logger::default())
                     .service(health)
+                    .service(transpose_wav)
             })
-            .bind((host.clone(), port))
-            .unwrap()
-            .run();
-            println!("listening on {host}:{port}");
-
-            server.await.unwrap();
+            .bind((host.clone(), port))?
+            .run()
+            .await
         },
     }
 }
