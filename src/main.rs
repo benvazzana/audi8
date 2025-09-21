@@ -12,7 +12,10 @@ struct Args {
 
     #[arg(index=2, allow_hyphen_values = true,
           value_parser = clap::value_parser!(i32).range(-12..=12))]
-    num_semitones: i32
+    num_semitones: i32,
+
+    #[arg(short, long, default_value_t = String::from("output.wav"))]
+    output_file: String,
 }
 
 fn main() {
@@ -20,6 +23,7 @@ fn main() {
 
     let file_path = &args.file;
     let pitch_shift = args.num_semitones;
+    let output_file = &args.output_file;
 
     println!("file path: {file_path}");
     println!("pitch shift: {pitch_shift}");
@@ -33,7 +37,7 @@ fn main() {
     println!("spec: {spec:?}");
 
     let mut writer = WavWriter::create(
-        "output.wav",
+        output_file,
         WavSpec {
             channels: spec.channels,
             sample_rate: spec.sample_rate,
@@ -85,6 +89,6 @@ fn main() {
 
     writer.finalize().unwrap();
 
-    println!("successfully transposed {file_path}, saving to output.wav");
+    println!("successfully transposed {file_path}, saving to {output_file}");
 }
 
