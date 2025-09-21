@@ -1,7 +1,8 @@
+use actix_web::{App, HttpServer};
 use clap::{Subcommand, Parser};
 use hound::{Error, WavReader, WavSpec, WavWriter};
 
-use audi8::{error::InsufficientInputError, time_scaler::TimeScaler, wav};
+use audi8::{api::health, error::InsufficientInputError, time_scaler::TimeScaler, wav};
 use rubato::{FftFixedInOut, Resampler};
 
 #[derive(Parser)]
@@ -27,12 +28,16 @@ enum Command {
     },
 
     Serve {
-        #[arg(short, long, default_value = "127.0.0.1:8080")]
-        bind: String,
+        #[arg(index=1, default_value = "127.0.0.1")]
+        host: String,
+
+        #[arg(index=2, default_value_t = 8080)]
+        port: u16,
     },
 }
 
-fn main() {
+#[actix_web::main]
+async fn main() {
     let args = Args::parse();
     match args.command {
         Command::Cli { input_file, num_semitones, output_file } => {
@@ -102,8 +107,17 @@ fn main() {
 
             println!("successfully transposed {input_file}, saving to {output_file}");
         },
-        Command::Serve { bind } => {
-            println!("TODO: start server at {bind}");
+        Command::Serve { host, port } => {
+            let server = HttpServer::new(|| {
+                App::new()
+                    .service(health)
+            })
+            .bind((host.clone(), port))
+            .unwrap()
+            .run();
+            println!("listening on {host}:{port}");
+
+            server.await.unwrap();
         },
     }
 }
