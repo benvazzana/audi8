@@ -1,3 +1,5 @@
+pub mod api;
+pub mod transpose;
 pub mod time_scaler;
 pub mod window;
 pub mod wav;

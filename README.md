@@ -13,8 +13,11 @@ cargo build
 
 To run the CLI (debug build):
 ```sh
-cargo run <file> <num-semitones>
+cargo run cli <file> <num-semitones>
 ```
-Arguments:
-- path to a WAV file
-- number of semitones to transpose (must be in range [-12, 12])
+
+To run the API server:
+```sh
+cargo run serve <host> <port>
+```
+
